@@ -20,17 +20,17 @@ uv sync
 Создай `.env` в корне проекта:
 
 ```env
-BOT_TOKEN=1234567890:AAFxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+BOT_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Каналы (имя = CHANNEL_ID_ + имя в верхнем регистре)
-CHANNEL_ID_MYCHANNEL=-1001234567890
-CHANNEL_ID_TEST=-1009876543210
+CHANNEL_ID_MYCHANNEL=-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CHANNEL_ID_TEST=-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Чаты (имя = CHAT_ + имя в верхнем регистре)
-CHAT_MYCHAT=-1001111111111
+CHAT_MYCHAT=-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Опционально
-ADMIN_CHAT_ID=123456789
+ADMIN_CHAT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 LOG_LEVEL=INFO
 ```
 
