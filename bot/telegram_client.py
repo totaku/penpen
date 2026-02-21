@@ -240,6 +240,34 @@ class TelegramClient:
         )
         return {"ok": True, "result": {"message_id": result.message_id}}
 
+    async def notify_admin(self, chat_id: str, text: str) -> None:
+        """Send a plain-text notification (no parse_mode to avoid escaping issues)."""
+        assert self._bot is not None, "Client not initialized — use as async context manager"
+        try:
+            await self._with_retry(
+                self._bot.send_message,
+                chat_id=chat_id,
+                text=text,
+            )
+        except Exception as e:
+            logger.error("Failed to notify admin: %s", e)
+
+    async def forward_message(
+        self,
+        to_chat_id: str,
+        from_chat_id: str,
+        message_id: int,
+    ) -> dict[str, Any]:
+        """Forward a message from one chat to another."""
+        assert self._bot is not None, "Client not initialized — use as async context manager"
+        result: Message = await self._with_retry(
+            self._bot.forward_message,
+            chat_id=to_chat_id,
+            from_chat_id=from_chat_id,
+            message_id=message_id,
+        )
+        return {"ok": True, "result": {"message_id": result.message_id}}
+
     async def _with_retry(
         self,
         method: Callable[..., Coroutine[Any, Any, Any]],

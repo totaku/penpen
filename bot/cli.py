@@ -12,9 +12,16 @@ from pathlib import Path
 from typing import Any
 
 from bot.config import Config, ConfigError, load_config
-from bot.markdown_processor import CaptionTooLongError, MessageError, prepare_caption, prepare_text
+from bot.markdown_processor import (
+    MAX_CAPTION_LENGTH,
+    CaptionTooLongError,
+    MessageError,
+    prepare_caption,
+    prepare_text,
+    to_telegram_markdown,
+)
 from bot.media_scanner import MediaKind, MediaPlan, clear, scan
-from bot.message_store import load_last_id, parse_message_ref, save_last_id
+from bot.message_store import load_last_id, parse_forward_ref, parse_message_ref, save_last_id
 from bot.telegram_client import SendResult, TelegramClient, TelegramError
 
 DEFAULT_MESSAGE_FILE = Path("message.md")
@@ -35,6 +42,7 @@ class SendArgs:
     delete: str | None = None
     edit: str | None = None
     reply_to: str | None = None
+    forward: str | None = None
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -134,6 +142,12 @@ def _build_parser() -> argparse.ArgumentParser:
         const="last",
         default=None,
         help="Reply to message by ID or link (omit value to reply to last sent)",
+    )
+    send.add_argument(
+        "--forward",
+        metavar="LINK",
+        default=None,
+        help="Forward message by t.me/c/... link to all targets",
     )
 
     return parser
@@ -260,6 +274,14 @@ def _resolve_message_ref(ref: str, target: str, log: logging.Logger) -> int | No
         return None
 
 
+async def _notify_admin(config: Config, message: str) -> None:
+    """Send a plain-text notification to ADMIN_CHAT_ID if configured."""
+    if not config.admin_chat_id:
+        return
+    async with TelegramClient(config.bot_token) as client:
+        await client.notify_admin(config.admin_chat_id, message)
+
+
 async def _run_send(args: SendArgs, config: Config) -> int:
     """Async implementation of the send command. Returns exit code."""
     log = logging.getLogger(__name__)
@@ -270,6 +292,37 @@ async def _run_send(args: SendArgs, config: Config) -> int:
     except ValueError as e:
         log.error("%s", e)
         return 1
+
+    # Handle --forward
+    if args.forward is not None:
+        try:
+            from_chat_id, message_id = parse_forward_ref(args.forward)
+        except ValueError as e:
+            log.error("%s", e)
+            await _notify_admin(config, f"penpen ошибка: {e}")
+            return 1
+
+        if args.dry_run:
+            log.info(
+                "[dry-run] Would forward message %d from %s to %s",
+                message_id, from_chat_id, [name for name, _ in targets],
+            )
+            return 0
+
+        async with TelegramClient(config.bot_token) as client:
+            all_ok = True
+            for target_name, chat_id in targets:
+                try:
+                    await client.forward_message(chat_id, from_chat_id, message_id)
+                    log.info("Forwarded message %d to %s", message_id, target_name)
+                except TelegramError as e:
+                    log.error("Failed to forward to %s: %s", target_name, e)
+                    await _notify_admin(
+                        config,
+                        f"penpen ошибка forward в {target_name}: {e}",
+                    )
+                    all_ok = False
+        return 0 if all_ok else 1
 
     # Handle management commands (pin/unpin/delete/edit) — no media sending
     management_action = args.pin or args.unpin or args.delete or args.edit
@@ -330,6 +383,10 @@ async def _run_send(args: SendArgs, config: Config) -> int:
                         log.info("Edited message %d in %s", message_id, target_name)
                 except TelegramError as e:
                     log.error("Failed to %s in %s: %s", action_name, target_name, e)
+                    await _notify_admin(
+                        config,
+                        f"penpen ошибка {action_name} в {target_name}: {e}",
+                    )
                     all_ok = False
 
         return 0 if all_ok else 1
@@ -363,6 +420,7 @@ async def _run_send(args: SendArgs, config: Config) -> int:
               plan.kind.name, len(plan.images), len(plan.videos), plan.thumbnail)
 
     # Prepare text
+    overflow: str | None = None
     try:
         if plan.kind == MediaKind.TEXT_ONLY:
             text = prepare_text(args.message_file)
@@ -370,10 +428,17 @@ async def _run_send(args: SendArgs, config: Config) -> int:
             text = prepare_caption(args.message_file)
     except MessageError as e:
         log.error("%s", e)
+        await _notify_admin(config, f"penpen ошибка: {e}")
         return 1
-    except CaptionTooLongError as e:
-        log.error("%s", e)
-        return 1
+    except CaptionTooLongError:
+        # Truncate to limit, save overflow for admin notification
+        full_text = to_telegram_markdown(args.message_file.read_text(encoding="utf-8"))
+        text = full_text[:MAX_CAPTION_LENGTH]
+        overflow = full_text[MAX_CAPTION_LENGTH:]
+        log.warning(
+            "Caption truncated to %d chars, %d chars will be sent to admin",
+            MAX_CAPTION_LENGTH, len(overflow),
+        )
 
     # Dry run summary
     if args.dry_run:
@@ -418,6 +483,22 @@ async def _run_send(args: SendArgs, config: Config) -> int:
         if r.success and r.message_id is not None:
             save_last_id(r.target_name, r.message_id)
 
+    # Notify admin about failures
+    for r in send_results:
+        if not r.success:
+            await _notify_admin(
+                config,
+                f"penpen ошибка отправки в {r.target_name}: {r.error}",
+            )
+
+    # Send overflow to admin if caption was truncated
+    if overflow and config.admin_chat_id:
+        targets_str = ", ".join(name for name, _ in targets)
+        await _notify_admin(
+            config,
+            f"penpen overflow ({targets_str}) — не вошло в подпись:\n\n{overflow}",
+        )
+
     # Cleanup media if all succeeded
     if all_ok and not args.keep_media:
         deleted = clear(args.media_dir)
@@ -453,6 +534,7 @@ def main() -> None:
             delete=ns.delete,
             edit=ns.edit,
             reply_to=ns.reply_to,
+            forward=ns.forward,
         )
 
         try:

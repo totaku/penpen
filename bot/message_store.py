@@ -30,3 +30,20 @@ def parse_message_ref(value: str) -> int:
     if m:
         return int(m.group(1))
     raise ValueError(f"Cannot parse message reference: {value!r}")
+
+
+def parse_forward_ref(value: str) -> tuple[str, int]:
+    """Parse a t.me link into (from_chat_id, message_id).
+
+    Accepts:
+        "https://t.me/c/1234567890/194"  → ("-1001234567890", 194)
+
+    The chat_id from t.me links omits the -100 prefix — we restore it.
+    Only t.me links are supported (not bare numbers — no context for from_chat_id).
+    """
+    m = re.match(r"https://t\.me/c/(\d+)/(\d+)", value)
+    if m:
+        from_chat_id = f"-100{m.group(1)}"
+        message_id = int(m.group(2))
+        return from_chat_id, message_id
+    raise ValueError(f"Cannot parse forward reference (expected t.me/c/... link): {value!r}")

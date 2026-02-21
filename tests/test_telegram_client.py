@@ -259,3 +259,45 @@ class TestReplyTo:
 
         call_kwargs = mock.call_args.kwargs
         assert call_kwargs["reply_parameters"] is None
+
+
+class TestForwardMessage:
+    async def test_forward_message_calls_api(self, mocker: object) -> None:
+        mock = mocker.patch.object(Bot, "forward_message", new_callable=AsyncMock)
+        mock.return_value = MagicMock(message_id=300)
+
+        async with TelegramClient(FAKE_TOKEN) as client:
+            result = await client.forward_message("-100999", "-100123", 194)
+
+        mock.assert_called_once()
+        call_kwargs = mock.call_args.kwargs
+        assert call_kwargs["chat_id"] == "-100999"
+        assert call_kwargs["from_chat_id"] == "-100123"
+        assert call_kwargs["message_id"] == 194
+        assert result["ok"] is True
+        assert result["result"]["message_id"] == 300
+
+
+class TestNotifyAdmin:
+    async def test_notify_admin_sends_plain_text(self, mocker: object) -> None:
+        mock = mocker.patch.object(Bot, "send_message", new_callable=AsyncMock)
+        mock.return_value = MagicMock(message_id=1)
+
+        async with TelegramClient(FAKE_TOKEN) as client:
+            await client.notify_admin("-100admin", "ошибка!")
+
+        mock.assert_called_once()
+        call_kwargs = mock.call_args.kwargs
+        assert call_kwargs["chat_id"] == "-100admin"
+        assert call_kwargs["text"] == "ошибка!"
+        assert "parse_mode" not in call_kwargs
+
+    async def test_notify_admin_swallows_errors(self, mocker: object) -> None:
+        mocker.patch.object(
+            Bot, "send_message",
+            side_effect=TelegramBadRequest(method="sendMessage", message="chat not found"),
+        )
+
+        async with TelegramClient(FAKE_TOKEN) as client:
+            # должен не падать
+            await client.notify_admin("-100admin", "ошибка!")

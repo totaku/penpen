@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from bot.message_store import load_last_id, parse_message_ref, save_last_id
+from bot.message_store import load_last_id, parse_forward_ref, parse_message_ref, save_last_id
 
 
 class TestSaveAndLoad:
@@ -61,3 +61,30 @@ class TestParseMessageRef:
     def test_empty_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="Cannot parse message reference"):
             parse_message_ref("")
+
+
+class TestParseForwardRef:
+    def test_parse_url(self) -> None:
+        from_chat_id, message_id = parse_forward_ref("https://t.me/c/1234567890/194")
+        assert from_chat_id == "-1001234567890"
+        assert message_id == 194
+
+    def test_prepends_minus100(self) -> None:
+        from_chat_id, _ = parse_forward_ref("https://t.me/c/9876543210/42")
+        assert from_chat_id == "-1009876543210"
+
+    def test_message_id_correct(self) -> None:
+        _, message_id = parse_forward_ref("https://t.me/c/1111111111/999")
+        assert message_id == 999
+
+    def test_bare_number_raises(self) -> None:
+        with pytest.raises(ValueError, match="expected t.me/c"):
+            parse_forward_ref("194")
+
+    def test_public_link_raises(self) -> None:
+        with pytest.raises(ValueError, match="expected t.me/c"):
+            parse_forward_ref("https://t.me/somechannel/194")
+
+    def test_empty_raises(self) -> None:
+        with pytest.raises(ValueError, match="expected t.me/c"):
+            parse_forward_ref("")
