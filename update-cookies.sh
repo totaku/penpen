@@ -23,7 +23,7 @@ echo "Экспортируем куки из Chrome..."
 # --print id — просто печатает ID видео, ничего не скачивает
 # Этого достаточно чтобы yt-dlp записал cookies.txt
 "$YT_DLP" \
-  --cookies-from-browser "chrome:.youtube.com" \
+  --cookies-from-browser chrome \
   --cookies "$COOKIES_FILE" \
   --print id \
   --no-playlist \
