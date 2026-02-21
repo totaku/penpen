@@ -8,7 +8,7 @@
 # Optional parameters:
 # @raycast.icon 🎮
 # @raycast.argument1 { "type": "text", "placeholder": "Канал или чат", "optional": false }
-# @raycast.argument2 { "type": "dropdown", "placeholder": "Операция", "optional": true, "data": [{"title": "Отправить", "value": "send"}, {"title": "Reply to", "value": "reply"}, {"title": "Редактировать", "value": "edit"}, {"title": "Удалить", "value": "delete"}, {"title": "Закрепить", "value": "pin"}, {"title": "Открепить", "value": "unpin"}] }
+# @raycast.argument2 { "type": "dropdown", "placeholder": "Операция", "optional": true, "data": [{"title": "Отправить", "value": "send"}, {"title": "Ответить", "value": "reply"}, {"title": "Редактировать", "value": "edit"}, {"title": "Удалить", "value": "delete"}, {"title": "Закрепить", "value": "pin"}, {"title": "Открепить", "value": "unpin"}] }
 # @raycast.argument3 { "type": "text", "placeholder": "YouTube URL или ссылка на сообщение", "optional": true }
 
 PROJECT_DIR="/Users/totaku/Work/3lf/main/penpen"
