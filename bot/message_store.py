@@ -1,0 +1,32 @@
+"""Persistent storage for last sent message IDs."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+
+def save_last_id(target: str, message_id: int) -> None:
+    """Save message_id to .last_message_id.<target> in current directory."""
+    Path(f".last_message_id.{target}").write_text(str(message_id))
+
+
+def load_last_id(target: str) -> int | None:
+    """Read message_id from .last_message_id.<target>, return None if not found."""
+    p = Path(f".last_message_id.{target}")
+    return int(p.read_text().strip()) if p.exists() else None
+
+
+def parse_message_ref(value: str) -> int:
+    """Parse message ID from a number string or a t.me link.
+
+    Accepts:
+        "194"                              → 194
+        "https://t.me/c/1234567890/194"   → 194
+    """
+    if value.isdigit():
+        return int(value)
+    m = re.match(r"https://t\.me/c/\d+/(\d+)", value)
+    if m:
+        return int(m.group(1))
+    raise ValueError(f"Cannot parse message reference: {value!r}")
