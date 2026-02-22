@@ -240,15 +240,16 @@ class TelegramClient:
         )
         return {"ok": True, "result": {"message_id": result.message_id}}
 
-    async def notify_admin(self, chat_id: str, text: str) -> None:
-        """Send a plain-text notification (no parse_mode to avoid escaping issues)."""
+    async def notify_admin(self, chat_id: str, text: str, parse_mode: str | None = None) -> None:
+        """Send a plain-text notification. Optionally accepts parse_mode."""
         assert self._bot is not None, "Client not initialized — use as async context manager"
         try:
-            await self._with_retry(
-                self._bot.send_message,
-                chat_id=chat_id,
-                text=text,
-            )
+            kwargs: dict[str, Any] = {"chat_id": chat_id, "text": text}
+            if parse_mode == "MarkdownV2":
+                kwargs["parse_mode"] = ParseMode.MARKDOWN_V2
+            elif parse_mode == "Markdown":
+                kwargs["parse_mode"] = ParseMode.MARKDOWN
+            await self._with_retry(self._bot.send_message, **kwargs)
         except Exception as e:
             logger.error("Failed to notify admin: %s", e)
 

@@ -16,9 +16,9 @@ from bot.markdown_processor import (
     MAX_CAPTION_LENGTH,
     CaptionTooLongError,
     MessageError,
+    TextTooLongError,
     prepare_caption,
     prepare_text,
-    to_telegram_markdown,
 )
 from bot.media_scanner import MediaKind, MediaPlan, clear, scan
 from bot.message_store import load_last_id, parse_forward_ref, parse_message_ref, save_last_id
@@ -274,12 +274,12 @@ def _resolve_message_ref(ref: str, target: str, log: logging.Logger) -> int | No
         return None
 
 
-async def _notify_admin(config: Config, message: str) -> None:
-    """Send a plain-text notification to ADMIN_CHAT_ID if configured."""
+async def _notify_admin(config: Config, message: str, parse_mode: str | None = None) -> None:
+    """Send a notification to ADMIN_CHAT_ID if configured."""
     if not config.admin_chat_id:
         return
     async with TelegramClient(config.bot_token) as client:
-        await client.notify_admin(config.admin_chat_id, message)
+        await client.notify_admin(config.admin_chat_id, message, parse_mode=parse_mode)
 
 
 async def _run_send(args: SendArgs, config: Config) -> int:
@@ -420,7 +420,6 @@ async def _run_send(args: SendArgs, config: Config) -> int:
               plan.kind.name, len(plan.images), len(plan.videos), plan.thumbnail)
 
     # Prepare text
-    overflow: str | None = None
     try:
         if plan.kind == MediaKind.TEXT_ONLY:
             text = prepare_text(args.message_file)
@@ -430,15 +429,17 @@ async def _run_send(args: SendArgs, config: Config) -> int:
         log.error("%s", e)
         await _notify_admin(config, f"penpen ошибка: {e}")
         return 1
-    except CaptionTooLongError:
-        # Truncate to limit, save overflow for admin notification
-        full_text = to_telegram_markdown(args.message_file.read_text(encoding="utf-8"))
-        text = full_text[:MAX_CAPTION_LENGTH]
-        overflow = full_text[MAX_CAPTION_LENGTH:]
-        log.warning(
-            "Caption truncated to %d chars, %d chars will be sent to admin",
-            MAX_CAPTION_LENGTH, len(overflow),
+    except (CaptionTooLongError, TextTooLongError) as e:
+        overflow = e.converted[MAX_CAPTION_LENGTH if isinstance(e, CaptionTooLongError) else 4096:]
+        log.error("%s", e)
+        targets_str = ", ".join(name for name, _ in targets)
+        await _notify_admin(
+            config,
+            f"penpen сообщение слишком длинное для {targets_str} ({e.length} символов)."
+            f" Не отправлено. Остаток:\n\n```\n{overflow}\n```",
+            parse_mode="Markdown",
         )
+        return 1
 
     # Dry run summary
     if args.dry_run:
@@ -490,14 +491,6 @@ async def _run_send(args: SendArgs, config: Config) -> int:
                 config,
                 f"penpen ошибка отправки в {r.target_name}: {r.error}",
             )
-
-    # Send overflow to admin if caption was truncated
-    if overflow and config.admin_chat_id:
-        targets_str = ", ".join(name for name, _ in targets)
-        await _notify_admin(
-            config,
-            f"penpen overflow ({targets_str}) — не вошло в подпись:\n\n{overflow}",
-        )
 
     # Cleanup media if all succeeded
     if all_ok and not args.keep_media:

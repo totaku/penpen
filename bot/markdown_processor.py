@@ -17,10 +17,22 @@ class MessageError(Exception):
 class CaptionTooLongError(Exception):
     """Raised when caption exceeds Telegram's 1024 character limit."""
 
-    def __init__(self, length: int) -> None:
+    def __init__(self, length: int, converted: str) -> None:
         self.length = length
+        self.converted = converted
         super().__init__(
             f"Caption is {length} characters, exceeds maximum of {MAX_CAPTION_LENGTH}."
+        )
+
+
+class TextTooLongError(Exception):
+    """Raised when text-only message exceeds Telegram's 4096 character limit."""
+
+    def __init__(self, length: int, converted: str) -> None:
+        self.length = length
+        self.converted = converted
+        super().__init__(
+            f"Message is {length} characters, exceeds maximum of {MAX_MESSAGE_LENGTH}."
         )
 
 
@@ -52,7 +64,7 @@ def prepare_caption(message_file: Path) -> str:
     raw = read_message(message_file)
     converted = to_telegram_markdown(raw)
     if len(converted) > MAX_CAPTION_LENGTH:
-        raise CaptionTooLongError(len(converted))
+        raise CaptionTooLongError(len(converted), converted)
     return converted
 
 
@@ -61,6 +73,10 @@ def prepare_text(message_file: Path) -> str:
 
     For text-only messages (no media), limit is 4096 chars.
     Raises MessageError if file is missing.
+    Raises TextTooLongError if converted text exceeds 4096 chars.
     """
     raw = read_message(message_file)
-    return to_telegram_markdown(raw)
+    converted = to_telegram_markdown(raw)
+    if len(converted) > MAX_MESSAGE_LENGTH:
+        raise TextTooLongError(len(converted), converted)
+    return converted
