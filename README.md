@@ -40,36 +40,36 @@ LOG_LEVEL=INFO
 
 ```bash
 # Отправить текст
-uv run bot send --to toto
+uv run bot send --to test
 
 # Нескольким получателям сразу
-uv run bot send --to toto test
+uv run bot send --to test test
 
 # С YouTube-видео
-uv run bot send --to toto --video "https://youtu.be/VIDEO_ID"
+uv run bot send --to test --video "https://youtu.be/VIDEO_ID"
 
 # Проверить без отправки
-uv run bot send --to toto --dry-run --debug
+uv run bot send --to test --dry-run --debug
 
 # Не удалять медиа после отправки
-uv run bot send --to toto --keep-media
+uv run bot send --to test --keep-media
 
 # Закрепить последнее отправленное сообщение
-uv run bot send --to toto --pin
+uv run bot send --to test --pin
 
 # Закрепить по ID или ссылке
-uv run bot send --to toto --pin 194
-uv run bot send --to toto --pin "https://t.me/c/1404339876/194"
+uv run bot send --to test --pin 194
+uv run bot send --to test --pin "https://t.me/c/1404339876/194"
 
 # Открепить / удалить
-uv run bot send --to toto --unpin 194
-uv run bot send --to toto --delete 194
+uv run bot send --to test --unpin 194
+uv run bot send --to test --delete 194
 
 # Отредактировать (текст берётся из message.md)
-uv run bot send --to toto --edit 194
+uv run bot send --to test --edit 194
 
 # Ответить на сообщение
-uv run bot send --to toto --reply-to 194
+uv run bot send --to test --reply-to 194
 ```
 
 После каждой успешной отправки `message_id` сохраняется в `.last_message_id.<target>`.
@@ -96,7 +96,7 @@ uv run bot send --to toto --reply-to 194
 ./update-cookies.sh
 
 # Затем отправить с видео
-uv run bot send --to toto --video "https://youtu.be/VIDEO_ID"
+uv run bot send --to test --video "https://youtu.be/VIDEO_ID"
 ```
 
 Видео скачивается в формате H.264 MP4 для совместимости с Mac/iOS/Telegram.
