@@ -166,7 +166,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="data",
         type=Path,
         default=None,
-        help="YAML file with template variables",
+        help="YAML file with template variables (default: templates/NAME.yml)",
     )
 
     return parser
@@ -305,9 +305,9 @@ async def _run_send(args: SendArgs, config: Config) -> int:
     """Async implementation of the send command. Returns exit code."""
     log = logging.getLogger(__name__)
 
-    # Validate --template/--data usage
-    if (args.template is None) != (args.data is None):
-        log.error("--template and --data must be used together")
+    # Validate --data without --template
+    if args.data is not None and args.template is None:
+        log.error("--data requires --template")
         return 1
 
     # Resolve targets
@@ -447,7 +447,8 @@ async def _run_send(args: SendArgs, config: Config) -> int:
     try:
         if args.template is not None:
             template_file = Path("templates") / f"{args.template}.md"
-            raw = render_template(template_file, args.data)  # type: ignore[arg-type]
+            data_file = args.data or Path("templates") / f"{args.template}.yml"
+            raw = render_template(template_file, data_file)
             if plan.kind == MediaKind.TEXT_ONLY:
                 text = prepare_text_from_str(raw)
             else:

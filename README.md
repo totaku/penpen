@@ -121,26 +121,32 @@ uv run bot send --to test --forward "https://t.me/c/1234567890/42"
 удобно использовать шаблоны: структура хранится в `templates/NAME.md` (Jinja2),
 переменные — в `data.yml`.
 
+Каждый шаблон — это пара файлов в `templates/`: `NAME.md` (структура) и `NAME.yml` (данные).
+Данные подтягиваются автоматически, редактировать нужно только `NAME.yml` перед отправкой.
+
+```
+templates/
+├── ps_plus_essential.md   # структура поста Essential
+├── ps_plus_essential.yml  # данные: дата, ссылка, список игр
+├── ps_plus_extra.md       # структура поста Extra+Premium
+└── ps_plus_extra.yml      # данные: дата, ссылка, два списка игр
+```
+
 ```bash
-uv run bot send --to test --template ps_plus --data data.yml
+# Essential — обновить templates/ps_plus_essential.yml и запустить
+uv run bot send --to test --template ps_plus_essential
+
+# Extra+Premium — обновить templates/ps_plus_extra.yml и запустить
+uv run bot send --to test --template ps_plus_extra
 
 # Вместе с медиа — картинку просто кладёшь в media/ как обычно
-uv run bot send --to test --template ps_plus --data data.yml
+uv run bot send --to test --template ps_plus_essential
+
+# Можно указать другой файл с данными явно
+uv run bot send --to test --template ps_plus_essential --data /path/to/other.yml
 ```
 
-Пример `data.yml`:
-
-```yaml
-date: "3 марта"
-url: "https://blog.playstation.com/..."
-tier: "Essential"
-games:
-  - "PGA Tour 2K25 | PS5"
-  - "Monster Hunter Rise | PS5, PS4"
-  - "Slime Rancher 2 | PS5"
-```
-
-Новый шаблон — просто новый `.md` файл в `templates/`, без изменений кода.
+Новый шаблон — просто новая пара `.md` + `.yml` в `templates/`, без изменений кода.
 
 ## Дополнительные опции
 
