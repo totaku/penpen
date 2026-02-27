@@ -97,7 +97,7 @@ def download(url: str, media_dir: Path) -> Path:
         _auth_errors = ("cookies are no longer valid", "Sign in to confirm")
         if COOKIES_FILE.exists() and any(e in result.stderr for e in _auth_errors):
             cmd_retry = [a for a in cmd if a != str(COOKIES_FILE) and a != "--cookies"]
-            cmd_retry += ["--cookies-from-browser", "chrome"]
+            cmd_retry += ["--cookies-from-browser", "firefox"]
             try:
                 result = subprocess.run(
                     cmd_retry, capture_output=True, text=True, check=False,
