@@ -94,7 +94,8 @@ def download(url: str, media_dir: Path) -> Path:
 
     if result.returncode != 0:
         # If cookies file is stale, retry with cookies from browser
-        if COOKIES_FILE.exists() and "cookies are no longer valid" in result.stderr:
+        _auth_errors = ("cookies are no longer valid", "Sign in to confirm")
+        if COOKIES_FILE.exists() and any(e in result.stderr for e in _auth_errors):
             cmd_retry = [a for a in cmd if a != str(COOKIES_FILE) and a != "--cookies"]
             cmd_retry += ["--cookies-from-browser", "chrome"]
             try:
