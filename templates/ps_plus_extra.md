@@ -1,12 +1,11 @@
 {{ date }}, в [каталог]({{ url }}) PlayStation Plus Extra и выше, будут добавлены:
 
-{% for game in games %}
+{% for game in games -%}
 • {{ game }}
 {% endfor %}
-
 В каталог PlayStation Plus Premium добавят:
-{% for game in premium_games %}
+
+{% for game in premium_games -%}
 • {{ game }}
 {% endfor %}
-
 #подпискакормит@brknbtns #игры@brknbtns
