@@ -93,9 +93,20 @@ def download(url: str, media_dir: Path) -> Path:
         raise DownloadError(f"Failed to run yt-dlp: {e}") from e
 
     if result.returncode != 0:
-        raise DownloadError(
-            f"yt-dlp exited with code {result.returncode}:\n{result.stderr}"
-        )
+        # If cookies file is stale, retry with cookies from browser
+        if COOKIES_FILE.exists() and "cookies are no longer valid" in result.stderr:
+            cmd_retry = [a for a in cmd if a != str(COOKIES_FILE) and a != "--cookies"]
+            cmd_retry += ["--cookies-from-browser", "chrome"]
+            try:
+                result = subprocess.run(
+                    cmd_retry, capture_output=True, text=True, check=False,
+                )
+            except OSError as e:
+                raise DownloadError(f"Failed to run yt-dlp: {e}") from e
+        if result.returncode != 0:
+            raise DownloadError(
+                f"yt-dlp exited with code {result.returncode}:\n{result.stderr}"
+            )
 
     # Find the downloaded mp4 file
     mp4_files = sorted(media_dir.glob("*.mp4"))
