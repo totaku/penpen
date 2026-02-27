@@ -17,7 +17,10 @@ from bot.markdown_processor import (
     MessageError,
     TextTooLongError,
     prepare_caption,
+    prepare_caption_from_str,
     prepare_text,
+    prepare_text_from_str,
+    render_template,
 )
 from bot.media_scanner import MediaKind, MediaPlan, clear, scan
 from bot.message_store import load_last_id, parse_forward_ref, parse_message_ref, save_last_id
@@ -42,6 +45,8 @@ class SendArgs:
     edit: str | None = None
     reply_to: str | None = None
     forward: str | None = None
+    template: str | None = None
+    data: Path | None = None
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -147,6 +152,21 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="LINK",
         default=None,
         help="Forward message by t.me/c/... link to all targets",
+    )
+    send.add_argument(
+        "--template",
+        metavar="NAME",
+        dest="template",
+        default=None,
+        help="Template name from templates/ directory (e.g. ps_plus)",
+    )
+    send.add_argument(
+        "--data",
+        metavar="FILE",
+        dest="data",
+        type=Path,
+        default=None,
+        help="YAML file with template variables",
     )
 
     return parser
@@ -285,6 +305,11 @@ async def _run_send(args: SendArgs, config: Config) -> int:
     """Async implementation of the send command. Returns exit code."""
     log = logging.getLogger(__name__)
 
+    # Validate --template/--data usage
+    if (args.template is None) != (args.data is None):
+        log.error("--template and --data must be used together")
+        return 1
+
     # Resolve targets
     try:
         targets = config.resolve_targets(args.targets)
@@ -420,7 +445,14 @@ async def _run_send(args: SendArgs, config: Config) -> int:
 
     # Prepare text
     try:
-        if plan.kind == MediaKind.TEXT_ONLY:
+        if args.template is not None:
+            template_file = Path("templates") / f"{args.template}.md"
+            raw = render_template(template_file, args.data)  # type: ignore[arg-type]
+            if plan.kind == MediaKind.TEXT_ONLY:
+                text = prepare_text_from_str(raw)
+            else:
+                text = prepare_caption_from_str(raw)
+        elif plan.kind == MediaKind.TEXT_ONLY:
             text = prepare_text(args.message_file)
         else:
             text = prepare_caption(args.message_file)
@@ -526,6 +558,8 @@ def main() -> None:
             edit=ns.edit,
             reply_to=ns.reply_to,
             forward=ns.forward,
+            template=ns.template,
+            data=ns.data,
         )
 
         try:

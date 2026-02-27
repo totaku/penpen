@@ -72,17 +72,36 @@ def _find_overflow_raw(raw: str, limit: int) -> str:
     return ""
 
 
+def prepare_caption_from_str(raw: str) -> str:
+    """Convert raw markdown string to Telegram MarkdownV2 caption.
+
+    Raises CaptionTooLongError if converted text exceeds 1024 chars.
+    """
+    converted = to_telegram_markdown(raw)
+    if len(converted) > MAX_CAPTION_LENGTH:
+        raise CaptionTooLongError(len(converted), _find_overflow_raw(raw, MAX_CAPTION_LENGTH))
+    return converted
+
+
+def prepare_text_from_str(raw: str) -> str:
+    """Convert raw markdown string to Telegram MarkdownV2 text message.
+
+    For text-only messages (no media), limit is 4096 chars.
+    Raises TextTooLongError if converted text exceeds 4096 chars.
+    """
+    converted = to_telegram_markdown(raw)
+    if len(converted) > MAX_MESSAGE_LENGTH:
+        raise TextTooLongError(len(converted), _find_overflow_raw(raw, MAX_MESSAGE_LENGTH))
+    return converted
+
+
 def prepare_caption(message_file: Path) -> str:
     """Read message file and convert to Telegram MarkdownV2 caption.
 
     Raises MessageError if file is missing.
     Raises CaptionTooLongError if converted text exceeds 1024 chars.
     """
-    raw = read_message(message_file)
-    converted = to_telegram_markdown(raw)
-    if len(converted) > MAX_CAPTION_LENGTH:
-        raise CaptionTooLongError(len(converted), _find_overflow_raw(raw, MAX_CAPTION_LENGTH))
-    return converted
+    return prepare_caption_from_str(read_message(message_file))
 
 
 def prepare_text(message_file: Path) -> str:
@@ -92,8 +111,27 @@ def prepare_text(message_file: Path) -> str:
     Raises MessageError if file is missing.
     Raises TextTooLongError if converted text exceeds 4096 chars.
     """
-    raw = read_message(message_file)
-    converted = to_telegram_markdown(raw)
-    if len(converted) > MAX_MESSAGE_LENGTH:
-        raise TextTooLongError(len(converted), _find_overflow_raw(raw, MAX_MESSAGE_LENGTH))
-    return converted
+    return prepare_text_from_str(read_message(message_file))
+
+
+def render_template(template_file: Path, data_file: Path) -> str:
+    """Render a Jinja2 template with YAML data. Returns raw markdown string."""
+    import yaml
+    from jinja2 import Template, TemplateError
+
+    try:
+        raw_template = template_file.read_text(encoding="utf-8")
+    except OSError as e:
+        raise MessageError(f"Template file not found: {template_file}: {e}") from e
+
+    try:
+        data = yaml.safe_load(data_file.read_text(encoding="utf-8")) or {}
+    except OSError as e:
+        raise MessageError(f"Data file not found: {data_file}: {e}") from e
+    except yaml.YAMLError as e:
+        raise MessageError(f"Invalid YAML in {data_file}: {e}") from e
+
+    try:
+        return Template(raw_template).render(**data)
+    except TemplateError as e:
+        raise MessageError(f"Template render error: {e}") from e
