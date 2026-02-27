@@ -3,4 +3,5 @@
 {% for game in games %}
 • {{ game }}
 {% endfor %}
-#покаинтересно@brknbtns #игры@brknbtns
+
+#подпискакормит@brknbtns #игры@brknbtns

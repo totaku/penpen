@@ -8,4 +8,5 @@
 {% for game in premium_games %}
 • {{ game }}
 {% endfor %}
-#покаинтересно@brknbtns #игры@brknbtns
+
+#подпискакормит@brknbtns #игры@brknbtns
