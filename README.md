@@ -95,19 +95,23 @@ uv run bot send --to test --pin
 uv run bot send --to test --pin 194
 uv run bot send --to test --pin "https://t.me/c/1404339876/194"
 
-# Открепить
+# Открепить по ID или ссылке
 uv run bot send --to test --unpin 194
+uv run bot send --to test --unpin "https://t.me/c/1404339876/194"
 
-# Удалить
+# Удалить по ID или ссылке
 uv run bot send --to test --delete 194
+uv run bot send --to test --delete "https://t.me/c/1404339876/194"
 
-# Отредактировать (текст берётся из message.md)
+# Отредактировать по ID или ссылке (текст берётся из message.md)
 uv run bot send --to test --edit 194
+uv run bot send --to test --edit "https://t.me/c/1404339876/194"
 
-# Ответить на сообщение (отправляет новый пост как ответ)
+# Ответить на сообщение по ID или ссылке (отправляет новый пост как ответ)
 uv run bot send --to test --reply-to 194
+uv run bot send --to test --reply-to "https://t.me/c/1404339876/194"
 
-# Переслать сообщение из другого канала
+# Переслать сообщение из другого канала (только ссылка)
 uv run bot send --to test --forward "https://t.me/c/1234567890/42"
 ```
 
