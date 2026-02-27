@@ -23,10 +23,11 @@ def parse_message_ref(value: str) -> int:
     Accepts:
         "194"                              → 194
         "https://t.me/c/1234567890/194"   → 194
+        "https://t.me/username/194"        → 194
     """
     if value.isdigit():
         return int(value)
-    m = re.match(r"https://t\.me/c/\d+/(\d+)", value)
+    m = re.match(r"https://t\.me/(?:c/\d+|[A-Za-z]\w+)/(\d+)", value)
     if m:
         return int(m.group(1))
     raise ValueError(f"Cannot parse message reference: {value!r}")

@@ -17,9 +17,9 @@ class MessageError(Exception):
 class CaptionTooLongError(Exception):
     """Raised when caption exceeds Telegram's 1024 character limit."""
 
-    def __init__(self, length: int, converted: str) -> None:
+    def __init__(self, length: int, overflow_raw: str) -> None:
         self.length = length
-        self.converted = converted
+        self.overflow_raw = overflow_raw
         super().__init__(
             f"Caption is {length} characters, exceeds maximum of {MAX_CAPTION_LENGTH}."
         )
@@ -28,9 +28,9 @@ class CaptionTooLongError(Exception):
 class TextTooLongError(Exception):
     """Raised when text-only message exceeds Telegram's 4096 character limit."""
 
-    def __init__(self, length: int, converted: str) -> None:
+    def __init__(self, length: int, overflow_raw: str) -> None:
         self.length = length
-        self.converted = converted
+        self.overflow_raw = overflow_raw
         super().__init__(
             f"Message is {length} characters, exceeds maximum of {MAX_MESSAGE_LENGTH}."
         )
@@ -55,6 +55,23 @@ def to_telegram_markdown(text: str) -> str:
     return telegramify_markdown.markdownify(text)
 
 
+def _find_overflow_raw(raw: str, limit: int) -> str:
+    """Return the part of raw markdown that didn't fit within the converted limit.
+
+    Splits by paragraphs, converts each to MarkdownV2, accumulates length,
+    and returns the raw paragraphs that exceed the limit.
+    """
+    paragraphs = raw.split("\n\n")
+    accumulated = 0
+    for i, para in enumerate(paragraphs):
+        converted_para = to_telegram_markdown(para)
+        addition = len(converted_para) + (2 if i > 0 else 0)
+        if accumulated + addition > limit:
+            return "\n\n".join(paragraphs[i:])
+        accumulated += addition
+    return ""
+
+
 def prepare_caption(message_file: Path) -> str:
     """Read message file and convert to Telegram MarkdownV2 caption.
 
@@ -64,7 +81,7 @@ def prepare_caption(message_file: Path) -> str:
     raw = read_message(message_file)
     converted = to_telegram_markdown(raw)
     if len(converted) > MAX_CAPTION_LENGTH:
-        raise CaptionTooLongError(len(converted), converted)
+        raise CaptionTooLongError(len(converted), _find_overflow_raw(raw, MAX_CAPTION_LENGTH))
     return converted
 
 
@@ -78,5 +95,5 @@ def prepare_text(message_file: Path) -> str:
     raw = read_message(message_file)
     converted = to_telegram_markdown(raw)
     if len(converted) > MAX_MESSAGE_LENGTH:
-        raise TextTooLongError(len(converted), converted)
+        raise TextTooLongError(len(converted), _find_overflow_raw(raw, MAX_MESSAGE_LENGTH))
     return converted

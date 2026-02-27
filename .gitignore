@@ -17,3 +17,4 @@ cookies.txt
 .last_message_id.*
 .DS_Store
 raycast-send.sh
+memory/

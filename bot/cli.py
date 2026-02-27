@@ -13,7 +13,6 @@ from typing import Any
 
 from bot.config import Config, ConfigError, load_config
 from bot.markdown_processor import (
-    MAX_CAPTION_LENGTH,
     CaptionTooLongError,
     MessageError,
     TextTooLongError,
@@ -430,13 +429,12 @@ async def _run_send(args: SendArgs, config: Config) -> int:
         await _notify_admin(config, f"penpen ошибка: {e}")
         return 1
     except (CaptionTooLongError, TextTooLongError) as e:
-        overflow = e.converted[MAX_CAPTION_LENGTH if isinstance(e, CaptionTooLongError) else 4096:]
         log.error("%s", e)
         targets_str = ", ".join(name for name, _ in targets)
         await _notify_admin(
             config,
             f"penpen сообщение слишком длинное для {targets_str} ({e.length} символов)."
-            f" Не отправлено. Остаток:\n\n```\n{overflow}\n```",
+            f" Не отправлено. Не влезло:\n\n```\n{e.overflow_raw}\n```",
             parse_mode="Markdown",
         )
         return 1

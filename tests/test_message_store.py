@@ -54,9 +54,11 @@ class TestParseMessageRef:
         with pytest.raises(ValueError, match="Cannot parse message reference"):
             parse_message_ref("not-a-number")
 
-    def test_invalid_url_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="Cannot parse message reference"):
-            parse_message_ref("https://t.me/somechannel/194")
+    def test_parse_public_url(self) -> None:
+        assert parse_message_ref("https://t.me/brknbtns/262") == 262
+
+    def test_parse_public_url_generic(self) -> None:
+        assert parse_message_ref("https://t.me/somechannel/194") == 194
 
     def test_empty_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="Cannot parse message reference"):
