@@ -144,7 +144,9 @@ main()
 
 ### Куки YouTube
 - `cookies.txt` в корне проекта (gitignored)
-- Создаётся через `./update-cookies.sh` (читает из Chrome)
+- Создаётся через `./update-cookies.sh` (читает из Firefox)
+- Chrome ротирует куки при чтении — использовать только Firefox
+- При невалидных куках автоматически fallback на `--cookies-from-browser firefox`
 - Обновлять раз в месяц или при ошибках авторизации
 
 ### Управление сообщениями (pin/edit/reply)
@@ -172,7 +174,7 @@ penpen/
 ├── cookies.txt          # YouTube куки (gitignored)
 ├── media/               # медиафайлы для отправки (gitignored)
 │   └── .gitkeep
-├── update-cookies.sh    # экспорт куки из Chrome
+├── update-cookies.sh    # экспорт куки из Firefox
 ├── pyproject.toml
 ├── uv.lock
 ├── bot/
