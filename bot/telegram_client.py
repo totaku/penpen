@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
@@ -21,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 BASE_BACKOFF = 1.0  # seconds
-
-type BotMethod[**P, R] = Callable[P, Coroutine[Any, Any, R]]
 
 
 class TelegramError(Exception):
@@ -70,7 +67,8 @@ class TelegramClient:
         reply_to_message_id: int | None = None,
     ) -> dict[str, Any]:
         """Send a text message."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         pm = ParseMode.MARKDOWN_V2 if parse_mode == "MarkdownV2" else parse_mode
         reply_params = (
             ReplyParameters(message_id=reply_to_message_id) if reply_to_message_id else None
@@ -93,7 +91,8 @@ class TelegramClient:
         reply_to_message_id: int | None = None,
     ) -> dict[str, Any]:
         """Send a single photo with caption."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         pm = ParseMode.MARKDOWN_V2 if parse_mode == "MarkdownV2" else parse_mode
         reply_params = (
             ReplyParameters(message_id=reply_to_message_id) if reply_to_message_id else None
@@ -117,7 +116,8 @@ class TelegramClient:
         reply_to_message_id: int | None = None,
     ) -> dict[str, Any]:
         """Send a group of photos (2-10) with caption on the first."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         pm = ParseMode.MARKDOWN_V2 if parse_mode == "MarkdownV2" else parse_mode
         media: list[InputMediaPhoto] = [
             InputMediaPhoto(media=FSInputFile(p)) for p in photos
@@ -155,7 +155,8 @@ class TelegramClient:
 
         Uses `cover` (not `thumbnail`) — no 320px size limit, supports streaming preview.
         """
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         pm = ParseMode.MARKDOWN_V2 if parse_mode == "MarkdownV2" else parse_mode
         reply_params = (
             ReplyParameters(message_id=reply_to_message_id) if reply_to_message_id else None
@@ -177,7 +178,8 @@ class TelegramClient:
 
     async def pin_message(self, chat_id: str, message_id: int) -> None:
         """Pin a message in a chat."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         await self._with_retry(
             self._bot.pin_chat_message,
             chat_id=chat_id,
@@ -186,7 +188,8 @@ class TelegramClient:
 
     async def unpin_message(self, chat_id: str, message_id: int) -> None:
         """Unpin a message in a chat."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         await self._with_retry(
             self._bot.unpin_chat_message,
             chat_id=chat_id,
@@ -195,7 +198,8 @@ class TelegramClient:
 
     async def delete_message(self, chat_id: str, message_id: int) -> None:
         """Delete a message."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         await self._with_retry(
             self._bot.delete_message,
             chat_id=chat_id,
@@ -210,7 +214,8 @@ class TelegramClient:
         parse_mode: str = "MarkdownV2",
     ) -> dict[str, Any]:
         """Edit text of an existing message."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         pm = ParseMode.MARKDOWN_V2 if parse_mode == "MarkdownV2" else parse_mode
         result: Message = await self._with_retry(
             self._bot.edit_message_text,
@@ -229,7 +234,8 @@ class TelegramClient:
         parse_mode: str = "MarkdownV2",
     ) -> dict[str, Any]:
         """Edit caption of a message with media (photo/video/document)."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         pm = ParseMode.MARKDOWN_V2 if parse_mode == "MarkdownV2" else parse_mode
         result: Message = await self._with_retry(
             self._bot.edit_message_caption,
@@ -242,7 +248,8 @@ class TelegramClient:
 
     async def notify_admin(self, chat_id: str, text: str, parse_mode: str | None = None) -> None:
         """Send a plain-text notification. Optionally accepts parse_mode."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         try:
             kwargs: dict[str, Any] = {"chat_id": chat_id, "text": text}
             if parse_mode == "MarkdownV2":
@@ -260,7 +267,8 @@ class TelegramClient:
         message_id: int,
     ) -> dict[str, Any]:
         """Forward a message from one chat to another."""
-        assert self._bot is not None, "Client not initialized — use as async context manager"
+        if self._bot is None:
+            raise RuntimeError("Client not initialized — use as async context manager")
         result: Message = await self._with_retry(
             self._bot.forward_message,
             chat_id=to_chat_id,
@@ -283,10 +291,7 @@ class TelegramClient:
 
         for attempt in range(MAX_RETRIES):
             try:
-                coro = method(**kwargs)
-                if inspect.isawaitable(coro):
-                    return await coro
-                return coro
+                return await method(**kwargs)
             except TelegramNetworkError as e:
                 # Network-level error — retry
                 last_exc = e

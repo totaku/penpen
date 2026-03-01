@@ -81,6 +81,9 @@ def clear(media_dir: Path) -> int:
     deleted = 0
     for entry in media_dir.iterdir():
         if entry.is_file() and entry.name != ".gitkeep":
-            entry.unlink()
-            deleted += 1
+            try:
+                entry.unlink()
+                deleted += 1
+            except FileNotFoundError:
+                pass
     return deleted

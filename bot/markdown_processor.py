@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import telegramify_markdown
+import yaml
+from jinja2 import Template, TemplateError
 
 MAX_CAPTION_LENGTH = 1024
 MAX_MESSAGE_LENGTH = 4096
@@ -116,9 +118,6 @@ def prepare_text(message_file: Path) -> str:
 
 def render_template(template_file: Path, data_file: Path) -> str:
     """Render a Jinja2 template with YAML data. Returns raw markdown string."""
-    import yaml
-    from jinja2 import Template, TemplateError
-
     try:
         raw_template = template_file.read_text(encoding="utf-8")
     except OSError as e:

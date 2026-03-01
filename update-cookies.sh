@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Экспортирует куки YouTube из Chrome в cookies.txt (формат Netscape/yt-dlp)
+# Экспортирует куки YouTube из Firefox в cookies.txt (формат Netscape/yt-dlp)
 # Запускай периодически или когда yt-dlp начинает требовать авторизацию.
-# Chrome должен быть запущен перед выполнением скрипта.
+# Firefox должен быть запущен перед выполнением скрипта.
 
 set -euo pipefail
 
@@ -18,7 +18,7 @@ if [[ -z "$YT_DLP" ]]; then
   exit 1
 fi
 
-echo "Экспортируем куки из Chrome..."
+echo "Экспортируем куки из Firefox..."
 
 # --print id — просто печатает ID видео, ничего не скачивает
 # Этого достаточно чтобы yt-dlp записал cookies.txt
