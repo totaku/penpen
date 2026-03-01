@@ -145,8 +145,8 @@ main()
 ### Куки YouTube
 - `cookies.txt` в корне проекта (gitignored)
 - Создаётся через `./update-cookies.sh` (читает из Firefox)
-- Chrome ротирует куки при чтении — использовать только Firefox
-- При невалидных куках автоматически fallback на `--cookies-from-browser firefox`
+- Если `cookies.txt` отсутствует или не читается — автоматически используется `--cookies-from-browser chrome`
+- При невалидных/устаревших куках автоматически fallback на `--cookies-from-browser chrome`
 - Обновлять раз в месяц или при ошибках авторизации
 
 ### Управление сообщениями (pin/edit/reply)

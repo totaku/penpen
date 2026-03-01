@@ -75,8 +75,18 @@ def download(url: str, media_dir: Path) -> Path:
         "--no-playlist",
     ]
 
+    _cookies_ok = False
     if COOKIES_FILE.exists():
+        try:
+            COOKIES_FILE.read_bytes()
+            _cookies_ok = True
+        except OSError:
+            pass
+
+    if _cookies_ok:
         cmd += ["--cookies", str(COOKIES_FILE)]
+    else:
+        cmd += ["--cookies-from-browser", "chrome"]
 
     cmd.append(url)
 
@@ -95,9 +105,9 @@ def download(url: str, media_dir: Path) -> Path:
     if result.returncode != 0:
         # If cookies file is stale, retry with cookies from browser
         _auth_errors = ("cookies are no longer valid", "Sign in to confirm")
-        if COOKIES_FILE.exists() and any(e in result.stderr for e in _auth_errors):
+        if _cookies_ok and any(e in result.stderr for e in _auth_errors):
             cmd_retry = [a for a in cmd if a != str(COOKIES_FILE) and a != "--cookies"]
-            cmd_retry += ["--cookies-from-browser", "firefox"]
+            cmd_retry += ["--cookies-from-browser", "chrome"]
             try:
                 result = subprocess.run(
                     cmd_retry, capture_output=True, text=True, check=False,
