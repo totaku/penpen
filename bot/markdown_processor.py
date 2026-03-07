@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import telegramify_markdown
@@ -10,6 +11,14 @@ from jinja2 import Template, TemplateError
 
 MAX_CAPTION_LENGTH = 1024
 MAX_MESSAGE_LENGTH = 4096
+
+SPLIT_SEPARATOR = "---split---"
+
+
+def split_raw(text: str) -> list[str]:
+    """Split raw markdown by ---split--- separator. Returns list of stripped parts."""
+    parts = re.split(r"^\s*---split---\s*$", text, flags=re.MULTILINE)
+    return [p.strip() for p in parts if p.strip()]
 
 
 class MessageError(Exception):
@@ -52,9 +61,14 @@ def read_message(message_file: Path) -> str:
         raise MessageError(f"Cannot read message file {message_file}: {e}") from e
 
 
+def _convert_headings_to_bold(text: str) -> str:
+    """Replace markdown headings (# ## ###) with bold text."""
+    return re.sub(r"^#{1,6}\s+(.+)$", r"**\1**", text, flags=re.MULTILINE)
+
+
 def to_telegram_markdown(text: str) -> str:
     """Convert Markdown text to Telegram MarkdownV2 format."""
-    return telegramify_markdown.markdownify(text)
+    return telegramify_markdown.markdownify(_convert_headings_to_bold(text))
 
 
 def _find_overflow_raw(raw: str, limit: int) -> str:

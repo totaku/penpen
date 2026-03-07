@@ -14,6 +14,7 @@ from bot.markdown_processor import (
     prepare_text,
     read_message,
     render_template,
+    split_raw,
     to_telegram_markdown,
 )
 
@@ -141,3 +142,47 @@ class TestRenderTemplate:
         data.write_text("{}", encoding="utf-8")
         with pytest.raises(MessageError, match="Template render error"):
             render_template(tpl, data)
+
+
+class TestSplitRaw:
+    def test_no_separator_returns_single_part(self) -> None:
+        result = split_raw("Hello world")
+        assert result == ["Hello world"]
+
+    def test_splits_into_two_parts(self) -> None:
+        text = "Part one\n---split---\nPart two"
+        result = split_raw(text)
+        assert result == ["Part one", "Part two"]
+
+    def test_splits_into_three_parts(self) -> None:
+        text = "Part 1\n---split---\nPart 2\n---split---\nPart 3"
+        result = split_raw(text)
+        assert result == ["Part 1", "Part 2", "Part 3"]
+
+    def test_strips_whitespace_around_parts(self) -> None:
+        text = "  Part one  \n---split---\n  Part two  "
+        result = split_raw(text)
+        assert result == ["Part one", "Part two"]
+
+    def test_ignores_empty_parts(self) -> None:
+        text = "---split---\nPart two\n---split---"
+        result = split_raw(text)
+        assert result == ["Part two"]
+
+    def test_separator_with_surrounding_whitespace_on_line(self) -> None:
+        text = "Part one\n  ---split---  \nPart two"
+        result = split_raw(text)
+        assert result == ["Part one", "Part two"]
+
+    def test_empty_string_returns_empty_list(self) -> None:
+        result = split_raw("")
+        assert result == []
+
+    def test_only_separator_returns_empty_list(self) -> None:
+        result = split_raw("---split---")
+        assert result == []
+
+    def test_multiline_parts(self) -> None:
+        text = "Line 1\nLine 2\n---split---\nLine 3\nLine 4"
+        result = split_raw(text)
+        assert result == ["Line 1\nLine 2", "Line 3\nLine 4"]

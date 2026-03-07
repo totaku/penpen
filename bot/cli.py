@@ -20,7 +20,9 @@ from bot.markdown_processor import (
     prepare_caption_from_str,
     prepare_text,
     prepare_text_from_str,
+    read_message,
     render_template,
+    split_raw,
 )
 from bot.media_scanner import MediaKind, MediaPlan, clear, scan
 from bot.message_store import load_last_id, parse_forward_ref, parse_message_ref, save_last_id
@@ -443,24 +445,34 @@ async def _run_send(args: SendArgs, config: Config) -> int:
     log.debug("MediaPlan: kind=%s, images=%d, videos=%d, thumbnail=%s",
               plan.kind.name, len(plan.images), len(plan.videos), plan.thumbnail)
 
-    # Prepare text
+    # Prepare text — split by ---split--- and convert each part
     try:
         if args.template is not None:
             template_file = Path("templates") / f"{args.template}.md"
             data_file = args.data or Path("templates") / f"{args.template}.yml"
             raw = render_template(template_file, data_file)
-            if plan.kind == MediaKind.TEXT_ONLY:
-                text = prepare_text_from_str(raw)
-            else:
-                text = prepare_caption_from_str(raw)
-        elif plan.kind == MediaKind.TEXT_ONLY:
-            text = prepare_text(args.message_file)
         else:
-            text = prepare_caption(args.message_file)
+            raw = read_message(args.message_file)
     except MessageError as e:
         log.error("%s", e)
         await _notify_admin(config, f"penpen ошибка: {e}")
         return 1
+
+    raw_parts = split_raw(raw)
+    total = len(raw_parts)
+
+    texts: list[str] = []
+    try:
+        for i, part in enumerate(raw_parts):
+            numbered = part + f"\n\n_{i + 1}/{total}_" if total > 1 else part
+            if plan.kind == MediaKind.TEXT_ONLY:
+                texts.append(prepare_text_from_str(numbered))
+            else:
+                # Only first part gets media caption; rest are text-only
+                if i == 0:
+                    texts.append(prepare_caption_from_str(numbered))
+                else:
+                    texts.append(prepare_text_from_str(numbered))
     except (CaptionTooLongError, TextTooLongError) as e:
         log.error("%s", e)
         targets_str = ", ".join(name for name, _ in targets)
@@ -472,55 +484,53 @@ async def _run_send(args: SendArgs, config: Config) -> int:
         )
         return 1
 
+    # Build per-part media plans: only first part gets original plan, rest are text-only
+    text_only_plan = MediaPlan(kind=MediaKind.TEXT_ONLY, images=[], videos=[], thumbnail=None)
+    plans = [plan if i == 0 else text_only_plan for i in range(total)]
+
     # Dry run summary
     if args.dry_run:
         print(f"[dry-run] Targets: {[name for name, _ in targets]}")
         print(f"[dry-run] Media kind: {plan.kind.name}")
-        print(f"[dry-run] Text length: {len(text)} chars")
-        print(f"[dry-run] Text preview:\n{text[:200]}{'...' if len(text) > 200 else ''}")
+        for i, (part_text, _part_plan) in enumerate(zip(texts, plans)):
+            suffix = " (reply to prev)" if i > 0 else ""
+            print(f"[dry-run] Part {i + 1}/{total}: {len(part_text)} chars{suffix}")
         if reply_to_message_id:
-            print(f"[dry-run] Reply to message_id: {reply_to_message_id}")
-        for name, chat_id in targets:
-            await _send_to_target(
-                None, name, chat_id, plan, text,
-                dry_run=True, reply_to_message_id=reply_to_message_id,
-            )
+            print(f"[dry-run] Initial reply to message_id: {reply_to_message_id}")
         return 0
 
-    # Send to all targets in parallel
+    # Send to all targets — parts sequentially (to chain reply_id), targets sequentially too
+    all_ok = True
+    last_results: dict[str, SendResult] = {}
+
     async with TelegramClient(config.bot_token) as client:
-        tasks = [
-            _send_to_target(
-                client, name, chat_id, plan, text,
-                reply_to_message_id=reply_to_message_id,
-            )
-            for name, chat_id in targets
-        ]
-        results: list[Any] = await asyncio.gather(*tasks, return_exceptions=True)
-
-    send_results: list[SendResult] = []
-    for r in results:
-        if isinstance(r, Exception):
-            log.error("Unexpected exception: %s", r)
-            send_results.append(
-                SendResult(target_name="unknown", chat_id="", success=False, error=str(r))
-            )
-        elif isinstance(r, SendResult):
-            send_results.append(r)
-
-    all_ok = all(r.success for r in send_results)
+        for target_name, chat_id in targets:
+            current_reply_id = reply_to_message_id
+            last_result: SendResult | None = None
+            for i, (part_text, part_plan) in enumerate(zip(texts, plans)):
+                result = await _send_to_target(
+                    client, target_name, chat_id, part_plan, part_text,
+                    reply_to_message_id=current_reply_id,
+                )
+                last_result = result
+                if not result.success:
+                    all_ok = False
+                    break
+                current_reply_id = result.message_id
+            if last_result is not None:
+                last_results[target_name] = last_result
 
     # Save last message_id for each target
-    for r in send_results:
-        if r.success and r.message_id is not None:
-            save_last_id(r.target_name, r.message_id)
+    for target_name, result in last_results.items():
+        if result.success and result.message_id is not None:
+            save_last_id(target_name, result.message_id)
 
     # Notify admin about failures
-    for r in send_results:
-        if not r.success:
+    for result in last_results.values():
+        if not result.success:
             await _notify_admin(
                 config,
-                f"penpen ошибка отправки в {r.target_name}: {r.error}",
+                f"penpen ошибка отправки в {result.target_name}: {result.error}",
             )
 
     # Cleanup media if all succeeded
@@ -530,11 +540,11 @@ async def _run_send(args: SendArgs, config: Config) -> int:
             log.info("Cleaned up %d media file(s)", deleted)
 
     # Report
-    for r in send_results:
-        if r.success:
-            log.info("✓ %s", r.target_name)
+    for result in last_results.values():
+        if result.success:
+            log.info("✓ %s", result.target_name)
         else:
-            log.error("✗ %s: %s", r.target_name, r.error)
+            log.error("✗ %s: %s", result.target_name, result.error)
 
     return 0 if all_ok else 1
 
