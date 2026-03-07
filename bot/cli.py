@@ -464,7 +464,7 @@ async def _run_send(args: SendArgs, config: Config) -> int:
     texts: list[str] = []
     try:
         for i, part in enumerate(raw_parts):
-            numbered = part + f"\n\n_{i + 1}/{total}_" if total > 1 else part
+            numbered = f"[{i + 1}/{total}] {part}" if total > 1 else part
             if plan.kind == MediaKind.TEXT_ONLY:
                 texts.append(prepare_text_from_str(numbered))
             else:
