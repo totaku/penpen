@@ -37,21 +37,19 @@ class TestScan:
         assert plan.kind == MediaKind.SINGLE_VIDEO
         assert len(plan.videos) == 1
 
-    def test_cover_jpg_is_thumbnail_not_image(self, tmp_media: Path) -> None:
+    def test_image_alongside_video_becomes_thumbnail(self, tmp_media: Path) -> None:
         _make_file(tmp_media, "video.mp4")
         _make_file(tmp_media, "cover.jpg")
         plan = scan(tmp_media)
         assert plan.kind == MediaKind.SINGLE_VIDEO
         assert plan.thumbnail is not None
         assert plan.thumbnail.name == "cover.jpg"
-        assert len(plan.images) == 0
 
-    def test_thumbnail_jpg_is_thumbnail(self, tmp_media: Path) -> None:
+    def test_video_without_image_has_no_thumbnail(self, tmp_media: Path) -> None:
         _make_file(tmp_media, "video.mp4")
-        _make_file(tmp_media, "thumbnail.jpg")
         plan = scan(tmp_media)
-        assert plan.thumbnail is not None
-        assert plan.thumbnail.name == "thumbnail.jpg"
+        assert plan.kind == MediaKind.SINGLE_VIDEO
+        assert plan.thumbnail is None
 
     def test_zero_size_file_ignored(self, tmp_media: Path) -> None:
         _make_file(tmp_media, "photo.jpg", size=0)

@@ -8,7 +8,6 @@ from pathlib import Path
 
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".gif", ".webp"})
 VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".avi", ".mkv", ".webm"})
-THUMBNAIL_NAMES = frozenset({"cover.jpg", "thumbnail.jpg"})
 
 
 class MediaKind(Enum):
@@ -34,13 +33,12 @@ def scan(media_dir: Path) -> MediaPlan:
     - 1 image → SINGLE_PHOTO
     - 2-10 images → PHOTO_GROUP
     - 1 video → SINGLE_VIDEO
-    - cover.jpg or thumbnail.jpg → used as video thumbnail, not counted as image
+    - any image alongside a video → used as thumbnail, not counted as image
     - Zero-size files are ignored
     """
     if not media_dir.exists():
         return MediaPlan(kind=MediaKind.TEXT_ONLY)
 
-    thumbnail: Path | None = None
     images: list[Path] = []
     videos: list[Path] = []
 
@@ -51,11 +49,6 @@ def scan(media_dir: Path) -> MediaPlan:
             continue
 
         suffix = entry.suffix.lower()
-        name = entry.name.lower()
-
-        if name in THUMBNAIL_NAMES:
-            thumbnail = entry
-            continue
 
         if suffix in IMAGE_EXTENSIONS:
             images.append(entry)
@@ -63,6 +56,7 @@ def scan(media_dir: Path) -> MediaPlan:
             videos.append(entry)
 
     if videos:
+        thumbnail = images[0] if images else None
         return MediaPlan(kind=MediaKind.SINGLE_VIDEO, videos=videos[:1], thumbnail=thumbnail)
 
     if len(images) == 0:
